@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockBuddy - Stock Predictions</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .search-section {
+            padding: 40px;
+            background: #f8f9fa;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 15px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .search-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .search-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results-section {
+            padding: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
+        .prediction-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            border: 1px solid #e9ecef;
+        }
+
+        .prediction-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f8f9fa;
+        }
+
+        .stock-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .stock-symbol {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .stock-price {
+            font-size: 1.5rem;
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-running {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-failed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+
+        .predictions-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .predictions-table th,
+        .predictions-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .predictions-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+
+        .predictions-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .price-change {
+            font-weight: 600;
+        }
+
+        .price-change.positive {
+            color: #28a745;
+        }
+
+        .price-change.negative {
+            color: #dc3545;
+        }
+
+        .sentiment-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .sentiment-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .sentiment-summary {
+            color: #6c757d;
+            line-height: 1.6;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .no-results h3 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        @media (max-width: 768px) {
+            .search-container {
+                flex-direction: column;
+            }
+            
+            .prediction-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            .stock-info {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>StockBuddy</h1>
+            <p>AI-Powered Stock Predictions</p>
+        </div>
+
+        <div class="search-section">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    class="search-input" 
+                    id="stockSymbol" 
+                    placeholder="Enter stock symbol (e.g., AAPL, GOOGL, MSFT)"
+                    maxlength="10"
+                >
+                <button class="search-btn" id="searchBtn" onclick="searchStock()">
+                    Get Prediction
+                </button>
+            </div>
+        </div>
+
+        <div class="results-section" id="resultsSection">
+            <div class="no-results">
+                <h3>Ready to predict?</h3>
+                <p>Enter a stock symbol above to get AI-powered predictions</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const BACKEND_URL = 'http://localhost:5000';
+        const MODEL_URL = 'http://localhost:5001';
+        
+        let currentTaskId = null;
+        let statusCheckInterval = null;
+
+        async function searchStock() {
+            const symbol = document.getElementById('stockSymbol').value.trim().toUpperCase();
+            const searchBtn = document.getElementById('searchBtn');
+            
+            if (!symbol) {
+                alert('Please enter a stock symbol');
+                return;
+            }
+
+            // Clear previous results
+            clearResults();
+            
+            // Show loading state
+            showLoading();
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Predicting...';
+
+            try {
+                // Start prediction
+                const response = await fetch(`${MODEL_URL}/api/predict`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        userId: 'demo-user',
+                        symbol: symbol,
+                        daysAhead: 5
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to start prediction');
+                }
+
+                const data = await response.json();
+                currentTaskId = data.taskId;
+                
+                // Start polling for status
+                pollPredictionStatus();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError(error.message);
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Get Prediction';
+            }
+        }
+
+        async function pollPredictionStatus() {
+            if (!currentTaskId) return;
+
+            statusCheckInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`${MODEL_URL}/api/predict/status/${currentTaskId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'completed') {
+                        clearInterval(statusCheckInterval);
+                        showPredictionResults(data.result);
+                        resetSearchButton();
+                    } else if (data.status === 'failed') {
+                        clearInterval(statusCheckInterval);
+                        showError(data.result?.error || 'Prediction failed');
+                        resetSearchButton();
+                    } else {
+                        updateProgress(data.progress, data.status);
+                    }
+                } catch (error) {
+                    console.error('Error checking status:', error);
+                    clearInterval(statusCheckInterval);
+                    showError('Failed to check prediction status');
+                    resetSearchButton();
+                }
+            }, 2000); // Check every 2 seconds
+        }
+
+        function showLoading() {
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <h3>Analyzing ${document.getElementById('stockSymbol').value.toUpperCase()}...</h3>
+                    <p>This may take a few minutes. We're fetching data and training AI models.</p>
+                </div>
+            `;
+        }
+
+        function updateProgress(progress, status) {
+            const resultsSection = document.getElementById('resultsSection');
+            const symbol = document.getElementById('stockSymbol').value.toUpperCase();
+            
+            resultsSection.innerHTML = `
+                <div class="prediction-card">
+                    <div class="prediction-header">
+                        <div class="stock-info">
+                            <div class="stock-symbol">${symbol}</div>
+                        </div>
+                        <div class="status-badge status-${status}">${status}</div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${progress}%"></div>
+                    </div>
+                    <p>Progress: ${progress}%</p>
+                </div>
+            `;
+        }
+
+        function showPredictionResults(result) {
+            const resultsSection = document.getElementById('resultsSection');
+            
+            if (result.error) {
+                showError(result.error);
+                return;
+            }
+
+            const predictionsHtml = result.predictions.map(pred => `
+                <tr>
+                    <td>${pred.date}</td>
+                    <td>$${pred.price}</td>
+                    <td class="price-change ${pred.change >= 0 ? 'positive' : 'negative'}">
+                        ${pred.change >= 0 ? '+' : ''}${pred.change}%
+                    </td>
+                </tr>
+            `).join('');
+
+            const sentimentHtml = result.sentiment ? `
+                <div class="sentiment-section">
+                    <div class="sentiment-title">Market Sentiment Analysis</div>
+                    <div class="sentiment-summary">${result.sentiment.summary}</div>
+                </div>
+            ` : '';
+
+            resultsSection.innerHTML = `
+                <div class="prediction-card">
+                    <div class="prediction-header">
+                        <div class="stock-info">
+                            <div class="stock-symbol">${result.symbol}</div>
+                            <div class="stock-price">$${result.lastActualClose.price}</div>
+                        </div>
+                        <div class="status-badge status-completed">Completed</div>
+                    </div>
+                    
+                    <p><strong>Last Close:</strong> $${result.lastActualClose.price} on ${result.lastActualClose.date}</p>
+                    
+                    <table class="predictions-table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Predicted Price</th>
+                                <th>Change %</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${predictionsHtml}
+                        </tbody>
+                    </table>
+                    
+                    ${sentimentHtml}
+                </div>
+            `;
+        }
+
+        function showError(message) {
+            const resultsSection = document.getElementById('resultsSection');
+            resultsSection.innerHTML = `
+                <div class="error">
+                    <strong>Error:</strong> ${message}
+                </div>
+            `;
+        }
+
+        function clearResults() {
+            if (statusCheckInterval) {
+                clearInterval(statusCheckInterval);
+            }
+            currentTaskId = null;
+        }
+
+        function resetSearchButton() {
+            const searchBtn = document.getElementById('searchBtn');
+            searchBtn.disabled = false;
+            searchBtn.textContent = 'Get Prediction';
+        }
+
+        // Allow Enter key to trigger search
+        document.getElementById('stockSymbol').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStock();
+            }
+        });
+
+        // Clear results when page loads
+        window.addEventListener('load', function() {
+            clearResults();
+        });
+    </script>
+</body>
+</html>
