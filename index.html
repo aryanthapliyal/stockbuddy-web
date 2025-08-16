@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockBuddy - Stock Predictions</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -53,8 +54,10 @@
         .search-container {
             display: flex;
             gap: 15px;
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .search-input {
@@ -70,6 +73,51 @@
             outline: none;
             border-color: #667eea;
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .days-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .days-selector:focus-within {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .days-label {
+            font-size: 0.9rem;
+            color: #495057;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .days-input {
+            width: 60px;
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .days-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+        }
+
+        .days-hint {
+            font-size: 0.8rem;
+            color: #6c757d;
+            white-space: nowrap;
         }
 
         .search-btn {
@@ -273,9 +321,80 @@
             color: #495057;
         }
 
+        .chart-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            text-align: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+            margin: 20px 0;
+        }
+
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .chart-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .chart-btn:hover {
+            background: #5a6fd8;
+            transform: translateY(-1px);
+        }
+
+        .chart-btn.active {
+            background: #2c3e50;
+        }
+
+        .chart-loading {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+        }
+
+        .chart-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #f5c6cb;
+        }
+
         @media (max-width: 768px) {
             .search-container {
                 flex-direction: column;
+                gap: 20px;
+            }
+            
+            .days-selector {
+                width: 100%;
+                justify-content: center;
             }
             
             .prediction-header {
@@ -308,6 +427,19 @@
                     placeholder="Enter stock symbol (e.g., AAPL, GOOGL, MSFT)"
                     maxlength="10"
                 >
+                <div class="days-selector">
+                    <label class="days-label">Predict for:</label>
+                    <input 
+                        type="number" 
+                        class="days-input" 
+                        id="predictionDays" 
+                        value="5" 
+                        min="1" 
+                        max="30"
+                        title="Number of days to predict (1-30)"
+                    >
+                    <span class="days-hint">days (1-30)</span>
+                </div>
                 <button class="search-btn" id="searchBtn" onclick="searchStock()">
                     Get Prediction
                 </button>
@@ -331,10 +463,18 @@
 
         async function searchStock() {
             const symbol = document.getElementById('stockSymbol').value.trim().toUpperCase();
+            const daysInput = document.getElementById('predictionDays');
+            const days = parseInt(daysInput.value);
             const searchBtn = document.getElementById('searchBtn');
             
             if (!symbol) {
                 alert('Please enter a stock symbol');
+                return;
+            }
+            
+            if (isNaN(days) || days < 1 || days > 30) {
+                alert('Please enter a valid number of days (1-30)');
+                daysInput.focus();
                 return;
             }
 
@@ -356,7 +496,7 @@
                     body: JSON.stringify({
                         userId: 'demo-user',
                         symbol: symbol,
-                        daysAhead: 5
+                        daysAhead: days
                     })
                 });
 
@@ -409,11 +549,13 @@
 
         function showLoading() {
             const resultsSection = document.getElementById('resultsSection');
+            const symbol = document.getElementById('stockSymbol').value.toUpperCase();
+            const days = document.getElementById('predictionDays').value;
             resultsSection.innerHTML = `
                 <div class="loading">
                     <div class="spinner"></div>
-                    <h3>Analyzing ${document.getElementById('stockSymbol').value.toUpperCase()}...</h3>
-                    <p>This may take a few minutes. We're fetching data and training AI models.</p>
+                    <h3>Analyzing ${symbol}...</h3>
+                    <p>Predicting ${days} days ahead. This may take a few minutes. We're fetching data and training AI models.</p>
                 </div>
             `;
         }
@@ -490,7 +632,23 @@
                     
                     ${sentimentHtml}
                 </div>
+                
+                <div class="chart-section">
+                    <div class="chart-title">Historical Price Chart</div>
+                    <div class="chart-controls">
+                        <button class="chart-btn active" onclick="loadChart('${result.symbol}', 30)">30 Days</button>
+                        <button class="chart-btn" onclick="loadChart('${result.symbol}', 60)">60 Days</button>
+                        <button class="chart-btn" onclick="loadChart('${result.symbol}', 100)">100 Days</button>
+                        <button class="chart-btn" onclick="loadChart('${result.symbol}', 200)">200 Days</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="stockChart"></canvas>
+                    </div>
+                </div>
             `;
+            
+            // Load the initial chart
+            loadChart(result.symbol, 30);
         }
 
         function showError(message) {
@@ -522,10 +680,214 @@
             }
         });
 
+        // Allow Enter key to trigger search from days input
+        document.getElementById('predictionDays').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStock();
+            }
+        });
+
+        // Validate days input on blur
+        document.getElementById('predictionDays').addEventListener('blur', function(e) {
+            const value = parseInt(e.target.value);
+            if (isNaN(value) || value < 1) {
+                e.target.value = 1;
+            } else if (value > 30) {
+                e.target.value = 30;
+            }
+        });
+
         // Clear results when page loads
         window.addEventListener('load', function() {
             clearResults();
         });
+
+        // Chart functionality
+        let currentChart = null;
+
+        async function loadChart(symbol, days) {
+            // Update active button
+            document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Show loading state
+            const chartContainer = document.querySelector('.chart-container');
+            chartContainer.innerHTML = '<div class="chart-loading">Loading chart data...</div>';
+            
+            try {
+                const response = await fetch(`${MODEL_URL}/api/historical-data/${symbol}?days=${days}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Validate data structure
+                if (!data.data || !Array.isArray(data.data) || data.data.length === 0) {
+                    throw new Error('No chart data available');
+                }
+                
+                // Create the chart
+                createStockChart(data);
+                
+                // Show note if sample data is being displayed
+                if (data.note) {
+                    const chartContainer = document.querySelector('.chart-container');
+                    const noteDiv = document.createElement('div');
+                    noteDiv.className = 'chart-note';
+                    noteDiv.innerHTML = `
+                        <div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 5px; margin-top: 10px; text-align: center; font-size: 0.9rem;">
+                            <strong>Note:</strong> ${data.note}
+                        </div>
+                    `;
+                    chartContainer.appendChild(noteDiv);
+                }
+                
+            } catch (error) {
+                console.error('Error loading chart:', error);
+                chartContainer.innerHTML = `
+                    <div class="chart-error">
+                        <strong>Error loading chart:</strong> ${error.message}
+                        <br><br>
+                        <small>Please try again or contact support if the issue persists.</small>
+                    </div>
+                `;
+            }
+        }
+
+        function createStockChart(data) {
+            const ctx = document.getElementById('stockChart');
+            
+            // Destroy existing chart if it exists
+            if (currentChart) {
+                currentChart.destroy();
+            }
+            
+            // Validate and prepare data for Chart.js
+            const validData = data.data.filter(item => 
+                item && 
+                typeof item.close === 'number' && 
+                !isNaN(item.close) &&
+                item.date
+            );
+            
+            if (validData.length === 0) {
+                throw new Error('No valid chart data found');
+            }
+            
+            const labels = validData.map(item => item.date);
+            const closePrices = validData.map(item => item.close);
+            const highPrices = validData.map(item => item.high || item.close);
+            const lowPrices = validData.map(item => item.low || item.close);
+            const volumes = validData.map(item => item.volume || 0);
+            
+            // Create gradient for the area
+            const gradient = ctx.getContext('2d').createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, 'rgba(102, 126, 234, 0.3)');
+            gradient.addColorStop(1, 'rgba(102, 126, 234, 0.0)');
+            
+            currentChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Close Price',
+                        data: closePrices,
+                        borderColor: '#667eea',
+                        backgroundColor: gradient,
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: '#667eea',
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#667eea',
+                            borderWidth: 1,
+                            cornerRadius: 8,
+                            displayColors: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return `Date: ${context[0].label}`;
+                                },
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    const dataPoint = validData[index];
+                                    return [
+                                        `Close: $${dataPoint.close.toFixed(2)}`,
+                                        `High: $${(dataPoint.high || dataPoint.close).toFixed(2)}`,
+                                        `Low: $${(dataPoint.low || dataPoint.close).toFixed(2)}`,
+                                        `Volume: ${(dataPoint.volume || 0).toLocaleString()}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: '#6c757d'
+                            },
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: '#6c757d',
+                                maxTicksLimit: 10
+                            }
+                        },
+                        y: {
+                            display: true,
+                            title: {
+                                display: true,
+                                text: 'Price ($)',
+                                color: '#6c757d'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            ticks: {
+                                color: '#6c757d',
+                                callback: function(value) {
+                                    return '$' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            hoverRadius: 6
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>

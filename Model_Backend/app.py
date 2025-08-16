@@ -18,6 +18,7 @@ from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import Callback
 import tensorflow as tf
 import xgboost as xgb
+import random
 
 app = Flask(__name__)
 CORS(app)
@@ -592,6 +593,125 @@ def get_sentiment(symbol):
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/historical-data/<symbol>', methods=['GET'])
+def get_historical_data(symbol):
+    """Get historical stock data for charting"""
+    try:
+        # Get the number of days from query parameter, default to 100
+        days = request.args.get('days', default=100, type=int)
+        
+        # Fetch historical data
+        try:
+            data = stock_model.fetch_stock_data(symbol, outputsize="compact")
+        except ValueError as e:
+            error_msg = str(e)
+            if "API request limit reached" in error_msg:
+                # Provide sample data when API limit is reached
+                print(f"API limit reached for {symbol}, providing sample data")
+                sample_data = generate_sample_data(symbol, days)
+                return jsonify({
+                    "symbol": symbol,
+                    "data": sample_data,
+                    "lastUpdated": "Sample Data",
+                    "currentPrice": sample_data[-1]["close"],
+                    "note": "Sample data shown due to API rate limit. Real data will be available in 60 seconds."
+                })
+            elif "Symbol" in error_msg and "not found" in error_msg:
+                return jsonify({
+                    "error": f"Stock symbol '{symbol}' not found.",
+                    "details": "Please verify the symbol is correct and from a supported exchange (NASDAQ, NYSE, etc.)"
+                }), 404
+            else:
+                return jsonify({"error": error_msg}), 500
+        
+        if data is None or len(data) == 0:
+            return jsonify({"error": f"No data available for {symbol}"}), 404
+        
+        # Limit to requested number of days
+        if len(data) > days:
+            data = data.tail(days)
+        
+        # Convert to JSON-serializable format
+        historical_data = []
+        for date, row in data.iterrows():
+            try:
+                # Handle both possible column name formats
+                open_price = float(row.get('Open', row.get('1. open', 0)))
+                high_price = float(row.get('High', row.get('2. high', 0)))
+                low_price = float(row.get('Low', row.get('3. low', 0)))
+                close_price = float(row.get('Close', row.get('4. close', 0)))
+                volume = int(row.get('Volume', row.get('5. volume', 0)))
+                
+                historical_data.append({
+                    "date": date.strftime('%Y-%m-%d'),
+                    "open": open_price,
+                    "high": high_price,
+                    "low": low_price,
+                    "close": close_price,
+                    "volume": volume
+                })
+            except Exception as e:
+                print(f"Error processing row for {date}: {e}")
+                print(f"Row data: {row}")
+                continue
+        
+        if not historical_data:
+            return jsonify({"error": "No valid data points found"}), 500
+        
+        return jsonify({
+            "symbol": symbol,
+            "data": historical_data,
+            "lastUpdated": data.index[-1].strftime('%Y-%m-%d'),
+            "currentPrice": float(data['Close'].iloc[-1])
+        })
+        
+    except Exception as e:
+        print(f"Unexpected error in historical-data endpoint: {str(e)}")
+        return jsonify({"error": "Internal server error. Please try again later."}), 500
+
+def generate_sample_data(symbol, days):
+    """Generate sample stock data for demonstration when API is unavailable"""
+    import random
+    from datetime import datetime, timedelta
+    
+    # Generate realistic sample data
+    base_price = random.uniform(50, 200)  # Random base price
+    data = []
+    
+    # Start from 100 days ago
+    start_date = datetime.now() - timedelta(days=100)
+    
+    for i in range(days):
+        date = start_date + timedelta(days=i)
+        
+        # Generate realistic price movements
+        if i == 0:
+            close_price = base_price
+        else:
+            # Random walk with some trend
+            change_percent = random.uniform(-0.05, 0.05)  # ±5% daily change
+            close_price = data[-1]["close"] * (1 + change_percent)
+        
+        # Generate OHLC data
+        daily_volatility = random.uniform(0.01, 0.03)  # 1-3% daily volatility
+        high_price = close_price * (1 + random.uniform(0, daily_volatility))
+        low_price = close_price * (1 - random.uniform(0, daily_volatility))
+        open_price = close_price * (1 + random.uniform(-daily_volatility/2, daily_volatility/2))
+        
+        # Generate volume
+        volume = random.randint(1000000, 10000000)
+        
+        data.append({
+            "date": date.strftime('%Y-%m-%d'),
+            "open": round(open_price, 2),
+            "high": round(high_price, 2),
+            "low": round(low_price, 2),
+            "close": round(close_price, 2),
+            "volume": volume
+        })
+    
+    return data
 
 @app.route('/api/diagnose', methods=['GET'])
 def diagnose():
